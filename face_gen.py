@@ -51,8 +51,15 @@ user_id = get_max_user_id() + 1
 if not os.path.exists('dataSet'):
     os.makedirs('dataSet')
 
+import sys
+
 try:
-    name = input(f"Введите имя для пользователя {user_id}: ")
+    # name = input(f"Введите имя для пользователя {user_id}: ")
+    if len(sys.argv) > 1:
+        name = sys.argv[1]
+    else:
+        print("Ошибка: имя не передано!")
+        exit()
 except Exception as e:
     print(f"Ошибка при вводе имени: {e}")
     exit()
