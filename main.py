@@ -1,6 +1,6 @@
 import sys
 import subprocess
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QHBoxLayout)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QHBoxLayout,QInputDialog)
 from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QPoint, QTimer, QEvent
 from PyQt6.QtGui import (QIcon, QFont, QColor, QLinearGradient, QPalette, QPainter, QBrush, QMovie)
 
