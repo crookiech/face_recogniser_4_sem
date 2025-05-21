@@ -1,6 +1,6 @@
 import sys
 import subprocess
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QInputDialog)
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtGui import QIcon
 
@@ -37,22 +37,22 @@ class FaceRecognitionApp(QMainWindow):
         layout.addWidget(self.exit_btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
     def add_user(self):
-        try:
-            result_gen = subprocess.run(["python", "face_gen.py"], capture_output=True, text=True)
-            if result_gen.returncode == 0:
-                result_train = subprocess.run(["python", "face_training.py"], capture_output=True, text=True)
-                if result_train.returncode == 0:
-                    QMessageBox.information(self, "Успех", "Пользователь успешно добавлен и модель обучена!")
+        name, ok = QInputDialog.getText(self, "Ввод имени", "Введите имя пользователя:")
+        if ok and name:
+            try:
+                result = subprocess.run([sys.executable, "face_gen.py", name], capture_output=True, text=True)
+                if result.returncode != 0:
+                    QMessageBox.critical(self, "Ошибка", f"Ошибка при распознавании пользователя:\n{result.stderr}")
                 else:
-                    QMessageBox.critical(self, "Ошибка", f"Ошибка при обучении модели:\n{result_train.stderr}")
-            else:
-                QMessageBox.critical(self, "Ошибка", f"Ошибка при добавлении пользователя:\n{result_gen.stderr}")
-        except Exception as e:
-            QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
-            
+                    result1 = subprocess.run([sys.executable, "face_training.py"], capture_output=True, text=True)
+                    if result1.returncode != 0:
+                        QMessageBox.critical(self, "Ошибка", f"Ошибка при тренировке:\n{result1.stderr}")
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
+                
     def recognize_user(self):
         try:
-            result = subprocess.run(["python", "face_detect.py"], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "face_detect.py"], capture_output=True, text=True)
             if result.returncode != 0:
                 QMessageBox.critical(self, "Ошибка", f"Ошибка при распознавании пользователя:\n{result.stderr}")
         except Exception as e:

@@ -63,6 +63,7 @@ cam = cv2.VideoCapture(0)
 if not cam.isOpened():
     print("Не удалось открыть камеру!")
 print("Распознавание лиц запущено. Нажмите 'q' для выхода.")
+
 while True:
     ret, frame = cam.read()
     if not ret:
@@ -89,6 +90,8 @@ while True:
         cv2.putText(frame, f"{name} ({confidence_percentage:.1f}%)", 
                     (x, y+h+30), font, 0.8, (0, 255, 0), 2)
     cv2.imshow('Face Recognition', frame)
+    if cv2.waitKey(1) == -1:
+        break
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
