@@ -57,18 +57,28 @@ face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_fronta
 font = cv2.FONT_HERSHEY_SIMPLEX
 recognizer = load_face_model()
 user_names = get_user_names()
+
+if recognizer is None:
+    print("Модель распознавания не загружена!")
+    exit()
+
 if not user_names:
     print("В базе данных нет пользователей!")
+    exit()
+
 cam = cv2.VideoCapture(0)
 if not cam.isOpened():
     print("Не удалось открыть камеру!")
+    exit()
+
 print("Распознавание лиц запущено. Нажмите 'q' для выхода.")
 
 while True:
     ret, frame = cam.read()
     if not ret:
         print("Ошибка получения кадра с камеры!")
-        break
+        continue  # Продолжаем цикл при ошибке кадра
+
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     faces = face_cascade.detectMultiScale(
         gray, 
@@ -76,23 +86,24 @@ while True:
         minNeighbors=5, 
         minSize=(100, 100)
     )
+
     for (x, y, w, h) in faces:
-        nbr_predicted, confidence = recognizer.predict(gray[y:y+h, x:x+w])
-        max_confidence = 150
-        confidence_percentage = 100 * (1 - (confidence / max_confidence))
-        threshold = 50
-        if confidence_percentage < threshold:
-            name = "Unknown"
-        else:
-            str_id = str(nbr_predicted)
-            name = user_names.get(str_id, "Unknown")
-        cv2.rectangle(frame, (x-20, y-20), (x+w+20, y+h+20), (225, 0, 0), 2)
-        cv2.putText(frame, f"{name} ({confidence_percentage:.1f}%)", 
-                    (x, y+h+30), font, 0.8, (0, 255, 0), 2)
+        try:
+            nbr_predicted, confidence = recognizer.predict(gray[y:y+h, x:x+w])
+            confidence_percentage = max(0, 100 * (1 - (confidence / 150)))
+            name = user_names.get(str(nbr_predicted), "Unknown") if confidence_percentage >= 50 else "Unknown"
+            
+            cv2.rectangle(frame, (x-20, y-20), (x+w+20, y+h+20), (225, 0, 0), 2)
+            cv2.putText(frame, f"{name} ({confidence_percentage:.1f}%)", 
+                        (x, y+h+30), font, 0.8, (0, 255, 0), 2)
+        except Exception as e:
+            print(f"Ошибка распознавания: {e}")
+
     cv2.imshow('Face Recognition', frame)
-    if cv2.waitKey(1) == -1:
-        break
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    
+    # Единый вызов waitKey
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('q') or key == 27:  # 27 = ESC
         break
 
 cam.release()
