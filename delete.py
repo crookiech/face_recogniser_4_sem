@@ -30,3 +30,22 @@ def delete_user(name):
         return True, None
     except Exception as e:
         return False, f"Ошибка при удалении пользователя: {e}"
+    
+if not os.path.exists('dataSet'):
+    os.makedirs('dataSet')
+
+import sys
+
+try:
+    if len(sys.argv) > 1:
+        name = sys.argv[1]
+    else:
+        print("Ошибка: имя не передано!")
+        exit()
+except Exception as e:
+    print(f"Ошибка при вводе имени: {e}")
+    exit()
+
+delete_user(name)
+
+cv2.destroyAllWindows()
