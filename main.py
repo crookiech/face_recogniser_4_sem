@@ -422,12 +422,12 @@ class FaceRecognitionApp(QMainWindow):
                     "Ошибка",
                     f"Ошибка при переименовании пользователя:\n{result.stderr}"
                 )
-            else:
-                QMessageBox.information(
-                    self,
-                    "Успех",
-                    f"Пользователь {oldName} успешно переименован в {newName}."
-                )
+            # else:
+            #     QMessageBox.information(
+            #         self,
+            #         "Успех",
+            #         f"Пользователь {oldName} успешно переименован в {newName}."
+            #     )
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -442,12 +442,12 @@ class FaceRecognitionApp(QMainWindow):
                 result = subprocess.run([sys.executable, "delete.py", name], capture_output=True, text=True)
                 if result.returncode != 0:
                     QMessageBox.critical(self, "Ошибка", f"Ошибка при удалении пользователя:\n{result.stderr}")
-                else:
-                    QMessageBox.information(
-                        self,
-                        "Успех",
-                        f"Пользователь {name} успешно удалён."
-                    )
+                # else:
+                #     QMessageBox.information(
+                #         self,
+                #         "Успех",
+                #         f"Пользователь {name} успешно удалён."
+                #     )
             except Exception as e:
                 QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
 

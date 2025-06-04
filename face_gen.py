@@ -3,11 +3,12 @@ import os
 import psycopg2
 from psycopg2 import sql
 import data
+from pathlib import Path
+import sys
 
 path = os.path.dirname(os.path.abspath(__file__))
 
 classifier_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-
 if not os.path.exists(classifier_path):
     print("Ошибка: файл классификатора не найден!")
     exit()
@@ -36,9 +37,10 @@ def add_user(user_id, name):
     try:
         conn = data.get_db_connection()
         with conn.cursor() as cur:
+            # Добавляем пользователя с пустой моделью
             cur.execute(
-                sql.SQL("INSERT INTO users (user_id, name) VALUES (%s, %s);"),
-                (user_id, name)
+                sql.SQL("INSERT INTO users (user_id, name, model_data) VALUES (%s, %s, %s);"),
+                (user_id, name, psycopg2.Binary(b''))
             )
         conn.commit()
         conn.close()
@@ -52,10 +54,7 @@ user_id = get_max_user_id() + 1
 if not os.path.exists('dataSet'):
     os.makedirs('dataSet')
 
-import sys
-
 try:
-    # name = input(f"Введите имя для пользователя {user_id}: ")
     if len(sys.argv) > 1:
         name = sys.argv[1]
     else:
@@ -77,7 +76,11 @@ while True:
     for (x, y, w, h) in faces:
         i = i + 1
         face_img = gray[y-offset:y+h+offset, x-offset:x+w+offset]
-        filename = f"dataSet/face-{user_id}.{i}.jpg"
+        
+        data_dir = Path("dataSet")
+        data_dir.mkdir(exist_ok=True)
+        filename = str(data_dir / f"face-{user_id}.{i}.jpg")
+
         cv2.imwrite(filename, face_img)
         cv2.rectangle(im, (x-offset, y-offset), (x+w+offset, y+h+offset), (225, 0, 0), 2)
         cv2.imshow('im', im[y-offset:y+h+offset, x-offset:x+w+offset])
