@@ -7,6 +7,7 @@ import data
 path = os.path.dirname(os.path.abspath(__file__))
 
 classifier_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+
 if not os.path.exists(classifier_path):
     print("Ошибка: файл классификатора не найден!")
     exit()
