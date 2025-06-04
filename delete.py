@@ -1,5 +1,12 @@
+import cv2
+import os
+import psycopg2
 from psycopg2 import sql
 import data
+
+path = os.path.dirname(os.path.abspath(__file__))
+
+classifier_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 
 def delete_user(name):
     try:
