@@ -8,8 +8,6 @@ path = os.path.dirname(os.path.abspath(__file__))
 
 classifier_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
 
-print("enter123")
-
 def rename_user(oldName, newName):
     try:
         conn = data.get_db_connection()
@@ -20,12 +18,10 @@ def rename_user(oldName, newName):
                 sql.SQL("SELECT COUNT(*) FROM users WHERE name = %s;"),
                 (oldName,)
             )
-            print("2")
             count = cur.fetchone()[0]
             if count == 0:
                 # Пользователь не найден
                 return False, f"Пользователь с именем '{oldName}' не найден."
-                print("4")
             # Если есть, обновляем имя
             cur.execute(
                 sql.SQL("UPDATE users SET name = %s WHERE name = %s;"),

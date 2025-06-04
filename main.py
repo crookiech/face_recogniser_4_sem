@@ -264,6 +264,7 @@ class FaceRecognitionApp(QMainWindow):
         self.add_user_btn.clicked.connect(self.add_user)
         self.recognize_btn.clicked.connect(self.recognize_user)
         self.rename_btn.clicked.connect(self.open_rename_dialog)
+        self.delete_btn.clicked.connect(self.delete_user)
         self.exit_btn.clicked.connect(self.close)
 
     def setup_styles(self):
@@ -421,12 +422,12 @@ class FaceRecognitionApp(QMainWindow):
                     "Ошибка",
                     f"Ошибка при переименовании пользователя:\n{result.stderr}"
                 )
-            # else:
-            #     QMessageBox.information(
-            #         self,
-            #         "Успех",
-            #         f"Пользователь {oldName} успешно переименован в {newName}."
-            #     )
+            else:
+                QMessageBox.information(
+                    self,
+                    "Успех",
+                    f"Пользователь {oldName} успешно переименован в {newName}."
+                )
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -434,13 +435,21 @@ class FaceRecognitionApp(QMainWindow):
                 f"Не удалось выполнить операцию переименования: {str(e)}"
             )
 
-    # def delete_user(self):
-    #     try:
-    #         result = subprocess.run([sys.executable, "face_detect.py"], capture_output=True, text=True)
-    #         if result.returncode != 0:
-    #             QMessageBox.critical(self, "Ошибка", f"Ошибка при распознавании пользователя:\n{result.stderr}")
-    #     except Exception as e:
-    #         QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
+    def delete_user(self):
+        name, ok = QInputDialog.getText(self, "Ввод имени для удаления", "Введите имя пользователя:")
+        if ok and name:
+            try:
+                result = subprocess.run([sys.executable, "delete.py", name], capture_output=True, text=True)
+                if result.returncode != 0:
+                    QMessageBox.critical(self, "Ошибка", f"Ошибка при удалении пользователя:\n{result.stderr}")
+                else:
+                    QMessageBox.information(
+                        self,
+                        "Успех",
+                        f"Пользователь {name} успешно удалён."
+                    )
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
 
     
 if __name__ == "__main__":
