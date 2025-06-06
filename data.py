@@ -8,7 +8,7 @@ DB_CONFIG = {
     'dbname': 'mydatabase',
     'user': 'myuser',
     'password': '123456789',
-    'host': '192.168.0.104',
+    'host': '192.168.192.106',
     'port': '5432'
 }
 

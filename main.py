@@ -1,8 +1,52 @@
 import sys
 import subprocess
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QHBoxLayout,QInputDialog)
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QPushButton, QLabel, QMessageBox, QHBoxLayout,QInputDialog, QLineEdit, QDialog)
 from PyQt6.QtCore import Qt, QSize, QPropertyAnimation, QEasingCurve, QPoint, QTimer, QEvent
 from PyQt6.QtGui import (QIcon, QFont, QColor, QLinearGradient, QPalette, QPainter, QBrush, QMovie)
+
+class RenameDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Переименование пользователя")
+
+        self.oldNameEdit = QLineEdit()
+        self.newNameEdit = QLineEdit()
+
+        layout = QVBoxLayout()
+
+        layout.addWidget(QLabel("Старое имя:"))
+        layout.addWidget(self.oldNameEdit)
+
+        layout.addWidget(QLabel("Новое имя:"))
+        layout.addWidget(self.newNameEdit)
+
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("ОК")
+        cancel_button = QPushButton("Отмена")
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+
+        ok_button.clicked.connect(self.on_ok_clicked)
+        cancel_button.clicked.connect(self.reject)
+
+    def getNames(self):
+        return self.oldNameEdit.text().strip(), self.newNameEdit.text().strip()
+
+    def on_ok_clicked(self):
+        oldName, newName = self.getNames()
+
+        if not oldName or not newName:
+            QMessageBox.warning(self, "Ошибка", "Пожалуйста, заполните оба поля.")
+            return
+        self.old_name = oldName 
+        self.new_name = newName 
+
+        self.accept()  
+
+
 
 class ToolTipWidget(QWidget):
     def __init__(self, parent=None):
@@ -20,7 +64,6 @@ class ToolTipWidget(QWidget):
             background-color: #FFFFFF;
             border-radius: 8px;
             padding: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
         """)
         self.tooltips = {}
         self.setup_tooltips()
@@ -37,7 +80,18 @@ class ToolTipWidget(QWidget):
                 "text": "Распознавание лица в реальном времени\n"
                         "Убедитесь, что лицо находится в центре кадра",
                 "gif": "animations/recognize.gif"
+            },
+            "rename_btn":{
+                "text": "Переименовать пользователя\n"
+                    "Введите старое и новое имя пользователя",
+                "gif": "animations/rename.gif"
+            },
+            "delete_btn":{
+                "text": "Удалить пользователя\n"
+                        "Введите имя пользователя, которого хотите удалить",
+                "gif": "animations/delete.gif"
             }
+
         }
 
         for btn_name, data in tooltip_data.items():
@@ -91,7 +145,7 @@ class FaceRecognitionApp(QMainWindow):
         super().__init__()
         self.setWindowTitle("Система распознавания лиц")
         self.setWindowIcon(QIcon("icons/face.png"))
-        self.setFixedSize(500, 500)
+        self.setFixedSize(500, 600)
         self.tooltips = {}
         self.setup_ui()
         self.setup_styles()
@@ -109,6 +163,16 @@ class FaceRecognitionApp(QMainWindow):
                 "text": "Распознавание лица в реальном времени\n"
                         "Убедитесь, что лицо находится в центре кадра",
                 "gif": "animations/recognize.gif"
+            },
+            self.rename_btn:{
+                "text": "Переименовать пользователя\n"
+                        "Введите старое и новое имя пользователя",
+                "gif": "animations/rename.gif"
+            },
+            self.delete_btn:{
+                "text": "Удалить пользователя\n"
+                        "Введите имя пользователя, которого хотите удалить",
+                "gif": "animations/delete.gif"
             }
         }
 
@@ -134,7 +198,6 @@ class FaceRecognitionApp(QMainWindow):
                 background-color: #f8f9fa;  /* Изменен цвет фона */
                 border-radius: 8px;
                 padding: 10px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
                 border: 1px solid #dee2e6;  /* Добавлена граница */
             """)
             
@@ -186,12 +249,14 @@ class FaceRecognitionApp(QMainWindow):
         # Buttons with icons
         self.add_user_btn = QPushButton("Добавить пользователя")
         self.recognize_btn = QPushButton("Распознать пользователя")
+        self.rename_btn = QPushButton("Переименовать пользователя")
+        self.delete_btn = QPushButton("Удалить пользователя")
         self.exit_btn = QPushButton("Выход")
-        for btn in [self.add_user_btn, self.recognize_btn]:
+        for btn in [self.add_user_btn, self.recognize_btn,self.rename_btn,self.delete_btn]:
             btn.installEventFilter(self)
 
         # Set button properties
-        for btn in [self.add_user_btn, self.recognize_btn, self.exit_btn]:
+        for btn in [self.add_user_btn, self.recognize_btn, self.rename_btn, self.delete_btn, self.exit_btn]:
             btn.setMinimumSize(300, 60)
             btn.setFont(QFont("Segoe UI", 13, QFont.Weight.Medium))
             btn.setIconSize(QSize(28, 28))
@@ -202,12 +267,16 @@ class FaceRecognitionApp(QMainWindow):
         layout.addStretch(1)
         layout.addWidget(self.add_user_btn)
         layout.addWidget(self.recognize_btn)
+        layout.addWidget(self.rename_btn)
+        layout.addWidget(self.delete_btn)
         layout.addWidget(self.exit_btn)
         layout.addStretch(2)
 
         # Connect signals
         self.add_user_btn.clicked.connect(self.add_user)
         self.recognize_btn.clicked.connect(self.recognize_user)
+        self.rename_btn.clicked.connect(self.open_rename_dialog)
+        self.delete_btn.clicked.connect(self.delete_user)
         self.exit_btn.clicked.connect(self.close)
 
     def setup_styles(self):
@@ -275,6 +344,24 @@ class FaceRecognitionApp(QMainWindow):
             press_color=self.accent.name()
         ))
 
+        self.rename_btn.setStyleSheet(btn_style.format(
+            text_color=self.text_color.name(),
+            bg_color=self.accent.lighter(115).name(),
+            border_color=self.accent.darker(110).name(),
+            hover_color=self.accent.lighter(105).name(),
+            hover_border=self.accent.darker(115).name(),
+            press_color=self.accent.name()
+        ))
+
+        self.delete_btn.setStyleSheet(btn_style.format(
+            text_color=self.text_color.name(),
+            bg_color=self.accent.lighter(115).name(),
+            border_color=self.accent.darker(110).name(),
+            hover_color=self.accent.lighter(105).name(),
+            hover_border=self.accent.darker(115).name(),
+            press_color=self.accent.name()
+        ))
+
         self.exit_btn.setStyleSheet(btn_style.format(
             text_color=self.text_color.name(),
             bg_color=self.secondary.lighter(115).name(),
@@ -286,7 +373,7 @@ class FaceRecognitionApp(QMainWindow):
 
     def setup_animations(self):
         # Hover animations
-        for btn in [self.add_user_btn, self.recognize_btn, self.exit_btn]:
+        for btn in [self.add_user_btn, self.recognize_btn,self.rename_btn,self.delete_btn, self.exit_btn]:
             anim = QPropertyAnimation(btn, b"geometry")
             anim.setDuration(200)
             anim.setEasingCurve(QEasingCurve.Type.OutQuad)
@@ -324,6 +411,45 @@ class FaceRecognitionApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
 
+    def open_rename_dialog(self):
+        try:
+            self.rename_dialog = RenameDialog(self)
+            self.rename_dialog.accepted.connect(self.rename_user)
+            self.rename_dialog.show()
+        except Exception as e:
+            QMessageBox.critical(self, "Ошибка", f"Не удалось открыть диалоговое окно: {str(e)}")
+
+    def rename_user(self):
+        try:
+            oldName = self.rename_dialog.old_name
+            newName = self.rename_dialog.new_name
+            result = subprocess.run([sys.executable, "rename.py", oldName, newName], capture_output=True, text=True)
+            if result.returncode != 0:  # Если код возврата не 0, это ошибка
+                QMessageBox.critical(self, "Ошибка", f"Ошибка при переименовании пользователя:\n{result.stderr}")
+            else:
+                QMessageBox.information(self, "Успех", f"Пользователь {oldName} успешно переименован в {newName}." )
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Ошибка",
+                f"Не удалось выполнить операцию переименования: {str(e)}"
+            )
+
+    def delete_user(self):
+        name, ok = QInputDialog.getText(self, "Ввод имени для удаления", "Введите имя пользователя:")
+        if ok and name:
+            try:
+                from delete import delete_user
+                success, message = delete_user(name)
+                
+                if success:
+                    QMessageBox.information(self, "Успех",  message)
+                else:
+                    QMessageBox.critical(self, "Ошибка", message)
+                    
+            except Exception as e:
+                QMessageBox.critical(self, "Ошибка", f"Не удалось выполнить операцию: {str(e)}")
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = FaceRecognitionApp()
@@ -331,5 +457,4 @@ if __name__ == "__main__":
     sys.exit(app.exec())
 
     
-
 

@@ -32,6 +32,7 @@ def cancel_handler(message):
         bot.send_message(message.chat.id, "Нет активных операций для отмены.", reply_markup=markup1)
 
 def load_user_names():
+    """Загрузка имен пользователей из базы данных"""
     conn = data.get_db_connection()
     user_names = {}
     try:
@@ -45,72 +46,130 @@ def load_user_names():
         conn.close()
     return user_names
 
+
 def load_recognizer():
+    """Загрузка модели распознавания из базы данных"""
     conn = data.get_db_connection()
     recognizer = cv2.face.LBPHFaceRecognizer_create()
+    valid_models = []  # Для хранения валидных моделей
+    
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT model_data FROM face_models;")
+            # Получаем только непустые модели
+            cur.execute("""
+                SELECT user_id, model_data 
+                FROM users 
+                WHERE model_data IS NOT NULL AND octet_length(model_data) > 0;
+            """)
             models = cur.fetchall()
             
             if not models:
                 print("В базе данных нет обученных моделей!")
                 return None
+                
             temp_files = []
             try:
-                for i, model_data in enumerate(models):
-                    temp_filename = os.path.join(tempfile.gettempdir(), f"face_model_temp_{i}.yml")
+                for user_id, model_data in models:
+                    # Создаем временный файл
+                    temp_filename = os.path.join(tempfile.gettempdir(), f"face_model_{user_id}.yml")
                     with open(temp_filename, 'wb') as f:
-                        f.write(model_data[0])
-                    temp_files.append(temp_filename)
-                    recognizer.read(temp_filename)
-                return recognizer
+                        f.write(model_data)
+                    
+                    # Проверяем валидность модели перед загрузкой
+                    if is_valid_model_file(temp_filename):
+                        temp_files.append(temp_filename)
+                        recognizer.read(temp_filename)
+                        valid_models.append(user_id)
+                    else:
+                        print(f"Невалидная модель для user_id={user_id}")
             finally:
                 for temp_file in temp_files:
                     if os.path.exists(temp_file):
                         try:
                             os.unlink(temp_file)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"Ошибка удаления временного файла: {e}")
+                
+                if not valid_models:
+                    print("Нет валидных моделей для загрузки!")
+                    return None
+                    
+                print(f"Загружено {len(valid_models)} валидных моделей")
+                return recognizer
     except Exception as e:
         print(f"Ошибка загрузки модели: {e}")
         return None
     finally:
         conn.close()
-    return recognizer
+
+def is_valid_model_file(file_path):
+    """Проверяет, является ли файл модели валидным"""
+    try:
+        # Попытка прочитать файл модели
+        recognizer = cv2.face.LBPHFaceRecognizer_create()
+        recognizer.read(file_path)
+        
+        # Дополнительная проверка наличия внутренних данных
+        return hasattr(recognizer, 'getLabels') and recognizer.getLabels() is not None
+    except:
+        return False
 
 def add_user_to_db(user_id, user_name):
+    """Добавление нового пользователя в базу данных"""
     conn = data.get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "INSERT INTO users (user_id, name) VALUES (%s, %s);",
-                (user_id, user_name)
+                sql.SQL("INSERT INTO users (user_id, name, model_data) VALUES (%s, %s, %s);"),
+                (user_id, user_name, psycopg2.Binary(b''))
             )
         conn.commit()
+        print(f"Пользователь {user_name} (ID: {user_id}) добавлен в БД")
     except Exception as e:
         print(f"Ошибка добавления пользователя: {e}")
     finally:
         conn.close()
 
 def save_model_to_db(recognizer, user_id):
+    """Сохранение модели в базу данных"""
+    # Сохраняем модель во временный файл
     temp_filename = os.path.join(tempfile.gettempdir(), f"model_{user_id}.yml")
-    recognizer.save(temp_filename)
-    with open(temp_filename, 'rb') as f:
-        model_data = f.read()
-    os.unlink(temp_filename)
-    conn = data.get_db_connection()
     try:
-        with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO face_models (user_id, model_data) VALUES (%s, %s);",
-                (user_id, psycopg2.Binary(model_data))
-            )
-        conn.commit()
+        recognizer.save(temp_filename)
+        
+        # Проверяем, что файл не пустой
+        if os.path.getsize(temp_filename) == 0:
+            print(f"Пустой файл модели для user_id={user_id}")
+            return False
+            
+        with open(temp_filename, 'rb') as f:
+            model_data = f.read()
+        
+        # Обновляем запись в базе данных
+        conn = data.get_db_connection()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    sql.SQL("UPDATE users SET model_data = %s WHERE user_id = %s;"),
+                    (psycopg2.Binary(model_data), user_id)
+                )
+            conn.commit()
+            print(f"Модель для user_id={user_id} сохранена в БД")
+            return True
+        except Exception as e:
+            print(f"Ошибка сохранения модели: {e}")
+            return False
+        finally:
+            conn.close()
     except Exception as e:
-        print(f"Ошибка сохранения модели: {e}")
+        print(f"Ошибка создания временного файла модели: {e}")
+        return False
     finally:
-        conn.close()
+        if os.path.exists(temp_filename):
+            try:
+                os.unlink(temp_filename)
+            except Exception as e:
+                print(f"Ошибка удаления временного файла: {e}")
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):

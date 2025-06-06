@@ -6,9 +6,11 @@ import psycopg2
 from psycopg2 import sql
 import tempfile
 import data
+from pathlib import Path
 
 def save_face_model(user_id, model):
     temp_filename = os.path.join(tempfile.gettempdir(), f"face_model_{user_id}_{os.getpid()}.yml")
+
     try:
         model.save(temp_filename)
         with open(temp_filename, 'rb') as f:
@@ -17,12 +19,8 @@ def save_face_model(user_id, model):
         try:
             with conn.cursor() as cur:
                 cur.execute(
-                    "DELETE FROM face_models WHERE user_id = %s;",
-                    (user_id,)
-                )
-                cur.execute(
-                    "INSERT INTO face_models (user_id, model_data) VALUES (%s, %s);",
-                    (user_id, psycopg2.Binary(model_data))
+                    "UPDATE users SET model_data = %s WHERE user_id = %s;",
+                    (psycopg2.Binary(model_data), user_id)
                 )
             conn.commit()
             print(f"Модель лица для пользователя {user_id} сохранена в базу данных")
@@ -40,7 +38,9 @@ def save_face_model(user_id, model):
 path = os.path.dirname(os.path.abspath(__file__))
 recognizer = cv2.face.LBPHFaceRecognizer_create()
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
-data_path = os.path.join(path, 'dataSet')
+
+data_path = Path(path) / 'dataSet'
+
 image_paths = [os.path.join(data_path, f) for f in os.listdir(data_path) if f.endswith('.jpg')]
 images = []
 labels = []
@@ -57,8 +57,10 @@ for image_path in image_paths:
             cv2.waitKey(50)
     except Exception as e:
         print(f"Ошибка обработки {image_path}: {e}")
+
 if not images:
     print("Нет изображений для обучения!")
+
 unique_user_ids = list(set(labels))
 for user_id in unique_user_ids:
     user_images = [img for img, lbl in zip(images, labels) if lbl == user_id]
@@ -69,4 +71,3 @@ for user_id in unique_user_ids:
 
 cv2.destroyAllWindows()
 print("Обучение завершено. Модели сохранены в базу данных.")
-
